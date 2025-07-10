@@ -1,0 +1,1 @@
+//! Fault tolerance primitives (placeholder)
