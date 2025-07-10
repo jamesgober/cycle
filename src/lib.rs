@@ -1,13 +1,16 @@
 //! CYCLE - Ultra-high performance async runtime
-//! 
-//! Fast task cycling with zero-overhead scheduling, lock-free architecture, 
-//! and built-in fault tolerance.
 
 #![warn(missing_docs)]
-#![cfg_attr(docsrs, feature(doc_cfg))]
+
+use std::future::Future;
+use std::sync::Arc;
 
 pub mod runtime;
 pub mod task;
+pub mod scheduler;
+
+#[cfg(feature = "net")]
+pub mod net;
 
 #[cfg(feature = "time")]
 pub mod time;
@@ -15,38 +18,48 @@ pub mod time;
 #[cfg(feature = "sync")]
 pub mod sync;
 
-#[cfg(feature = "net")]
-pub mod net;
+/// High-performance global runtime
+static GLOBAL_RUNTIME: once_cell::sync::Lazy<Arc<runtime::Runtime>> = 
+    once_cell::sync::Lazy::new(|| Arc::new(runtime::Runtime::new()));
 
-#[cfg(feature = "fs")]
-pub mod fs;
-
-#[cfg(feature = "metrics")]
-pub mod metrics;
-
-#[cfg(feature = "circuit-breaker")]
-pub mod fault_tolerance;
-
-/// Convenience re-exports for common types
-pub mod prelude {
-    pub use crate::runtime::{Runtime, Builder};
-    pub use crate::task::{spawn, JoinHandle};
-    
-    #[cfg(feature = "net")]
-    pub use crate::net::{TcpListener, TcpStream, UdpSocket};
-    
-    #[cfg(feature = "time")]
-    pub use crate::time::{sleep, interval};
-    
-    #[cfg(feature = "sync")]
-    pub use crate::sync::{Mutex, RwLock, mpsc, oneshot};
+/// Spawn a task on the global CYCLE runtime
+pub fn spawn<F>(future: F) -> task::JoinHandle<F::Output>
+where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    GLOBAL_RUNTIME.spawn(future)
 }
 
-/// Version information
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+/// Block on a future using the global runtime
+pub fn block_on<F>(future: F) -> F::Output
+where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    GLOBAL_RUNTIME.block_on(future)
+}
 
-/// Spawn a new asynchronous task
-pub use task::spawn;
+/// Get global runtime statistics
+pub fn stats() -> runtime::RuntimeStatsSnapshot {
+    GLOBAL_RUNTIME.stats()
+}
 
-/// Block on a future until completion
-pub use runtime::block_on;
+/// Prelude module
+pub mod prelude {
+    pub use crate::{spawn, block_on, stats};
+    pub use crate::runtime::Runtime;
+    pub use crate::task::JoinHandle;
+    
+    #[cfg(feature = "net")]
+    pub use crate::net::{TcpListener, TcpStream};
+    
+    #[cfg(feature = "time")]
+    pub use crate::time::sleep;
+    
+    #[cfg(feature = "sync")]
+    pub use crate::sync::{Mutex, RwLock};
+    
+    // Re-export standard time types
+    pub use std::time::{Duration, Instant};
+}

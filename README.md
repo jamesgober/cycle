@@ -3,6 +3,15 @@
     <h1>
         <strong>CYCLE</strong>
     </h1>
+</div>
+<div align="center">
+    <h3>Ultra-high performance async runtime for Rust</h3>
+    <p>
+        Fast task cycling with zero-overhead scheduling, lock-free architecture, and built-in fault tolerance.
+    </p>
+</div>
+<h2></h2>
+<div align="center">
     <div>
         <a href="https://crates.io/crates/cycle" alt="Cycle on Crates.io"><img alt="Crates.io" src="https://img.shields.io/crates/v/cycle"></a>
         <span>&nbsp;</span>
@@ -12,11 +21,4 @@
         <span>&nbsp;</span>
         <img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/jamesgober/cycle?color=%23347d39" alt="last commit badge">
     </div>
-</div>
-<div>
-<br>
-<h2 align="center">Ultra-high performance async runtime for Rust</h2>
-<p>
-    Fast task cycling with zero-overhead scheduling, lock-free architecture, and built-in fault tolerance.
-</p>
 </div>
