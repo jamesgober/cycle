@@ -3,6 +3,7 @@
 use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::future::Future;
 
 /// Async read trait
 pub trait AsyncRead {
@@ -29,28 +30,31 @@ pub trait AsyncWrite {
     /// Poll shutdown
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>>;
 }
-
 /// Async read extension methods
 pub trait AsyncReadExt: AsyncRead {
     /// Read data
-    async fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
+    fn read(&mut self, _buf: &mut [u8]) -> impl Future<Output = io::Result<usize>> + '_
     where
         Self: Unpin,
     {
-        // TODO: Implement read method
-        todo!("AsyncReadExt::read not implemented")
+        async move {
+            // TODO: Implement read method
+            todo!("AsyncReadExt::read not implemented")
+        }
     }
 }
 
 /// Async write extension methods
 pub trait AsyncWriteExt: AsyncWrite {
     /// Write all data
-    async fn write_all(&mut self, buf: &[u8]) -> io::Result<()>
+    fn write_all(&mut self, _buf: &[u8]) -> impl Future<Output = io::Result<()>> + '_
     where
         Self: Unpin,
     {
-        // TODO: Implement write_all method
-        todo!("AsyncWriteExt::write_all not implemented")
+        async move {
+            // TODO: Implement write_all method
+            todo!("AsyncWriteExt::write_all not implemented")
+        }
     }
 }
 

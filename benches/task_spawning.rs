@@ -1,7 +1,6 @@
 //! Task spawning benchmarks
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use cycle::prelude::*;
 
 fn bench_task_spawn(c: &mut Criterion) {
     c.bench_function("task_spawn", |b| {

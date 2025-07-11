@@ -1,4 +1,4 @@
-//! High-performance async runtime
+//! High-performance async runtime with real I/O
 
 use crate::scheduler::{Scheduler, Task};
 use crate::task::{JoinHandle, TaskControl};
@@ -8,7 +8,10 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-/// High-performance async runtime
+/// Re-export reactor for internal use
+pub use crate::reactor::REACTOR;
+
+/// High-performance async runtime with I/O integration
 pub struct Runtime {
     /// Task scheduler
     scheduler: Arc<Scheduler>,
@@ -37,6 +40,12 @@ pub struct RuntimeStats {
     
     /// Current active tasks
     pub active_tasks: AtomicU64,
+    
+    /// I/O operations completed
+    pub io_operations: AtomicU64,
+    
+    /// Timer operations completed  
+    pub timer_operations: AtomicU64,
 }
 
 impl Runtime {
@@ -51,6 +60,9 @@ impl Runtime {
         let scheduler = Arc::new(Scheduler::new(num_workers));
         let shutdown = Arc::new(AtomicBool::new(false));
         let stats = Arc::new(RuntimeStats::default());
+        
+        // Initialize reactor
+        once_cell::sync::Lazy::force(&REACTOR);
         
         // Start worker threads
         let workers = Self::start_workers(num_workers, scheduler.clone(), shutdown.clone());
@@ -96,7 +108,7 @@ impl Runtime {
         shutdown: Arc<AtomicBool>,
     ) {
         let mut idle_count = 0;
-        const MAX_IDLE: usize = 100;
+        const MAX_IDLE: usize = 1000;
         
         while !shutdown.load(Ordering::Acquire) {
             if let Some(task) = scheduler.find_work(worker_id) {
@@ -110,7 +122,7 @@ impl Runtime {
                 if idle_count < MAX_IDLE {
                     thread::yield_now();
                 } else {
-                    thread::sleep(Duration::from_micros(10));
+                    thread::sleep(Duration::from_micros(100));
                     idle_count = 0;
                 }
             }
@@ -132,10 +144,10 @@ impl Runtime {
         let control_clone = control.clone();
         let stats_clone = self.stats.clone();
         
-        // Create simple executor task
+        // Create task that executes the future
         let task: Task = Box::new(move || {
-            // Execute future using simple polling
-            let result = futures::executor::block_on(future);
+            // Execute future using futures executor
+            let result = futures_executor::block_on(future);
             control_clone.complete(Ok(result));
             
             stats_clone.tasks_completed.fetch_add(1, Ordering::Relaxed);
@@ -154,7 +166,7 @@ impl Runtime {
     {
         let handle = self.spawn(future);
         
-        // Busy wait for completion
+        // Busy wait for completion with yielding
         while !handle.is_finished() {
             thread::yield_now();
         }
@@ -169,17 +181,40 @@ impl Runtime {
             tasks_spawned: self.stats.tasks_spawned.load(Ordering::Relaxed),
             tasks_completed: self.stats.tasks_completed.load(Ordering::Relaxed),
             active_tasks: self.stats.active_tasks.load(Ordering::Relaxed),
+            io_operations: self.stats.io_operations.load(Ordering::Relaxed),
+            timer_operations: self.stats.timer_operations.load(Ordering::Relaxed),
         }
+    }
+    
+    /// Shutdown the runtime gracefully
+    pub fn shutdown(self) {
+        self.shutdown.store(true, Ordering::Release);
+        
+        // Wait for workers to finish
+        for worker in self._workers {
+            let _ = worker.join();
+        }
+        
+        // Shutdown reactor
+        REACTOR.shutdown();
     }
 }
 
 /// Snapshot of runtime statistics
 #[derive(Debug, Clone)]
 pub struct RuntimeStatsSnapshot {
+    /// How long the runtime has been running
     pub uptime: Duration,
+    /// Total number of tasks spawned
     pub tasks_spawned: u64,
+    /// Total number of tasks completed
     pub tasks_completed: u64,
+    /// Current number of active tasks
     pub active_tasks: u64,
+    /// Total number of I/O operations completed
+    pub io_operations: u64,
+    /// Total number of timer operations completed
+    pub timer_operations: u64,
 }
 
 impl RuntimeStatsSnapshot {
@@ -197,5 +232,21 @@ impl RuntimeStatsSnapshot {
             return 0.0;
         }
         self.tasks_completed as f64 / self.tasks_spawned as f64
+    }
+    
+    /// Calculate I/O operations per second
+    pub fn io_ops_per_second(&self) -> f64 {
+        if self.uptime.as_secs_f64() == 0.0 {
+            return 0.0;
+        }
+        self.io_operations as f64 / self.uptime.as_secs_f64()
+    }
+    
+    /// Calculate timer operations per second
+    pub fn timer_ops_per_second(&self) -> f64 {
+        if self.uptime.as_secs_f64() == 0.0 {
+            return 0.0;
+        }
+        self.timer_operations as f64 / self.uptime.as_secs_f64()
     }
 }

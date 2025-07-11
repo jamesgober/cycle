@@ -8,6 +8,8 @@ use std::sync::Arc;
 pub mod runtime;
 pub mod task;
 pub mod scheduler;
+pub mod reactor;
+pub mod io;
 
 #[cfg(feature = "net")]
 pub mod net;

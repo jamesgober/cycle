@@ -1,6 +1,6 @@
 [package] 
 name = "cycle"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 readme  = "README.md"
 license = "Apache-2.0"
@@ -33,7 +33,7 @@ exclude = [
 ]
 
 authors = [
-    "James Gober <contact@jamesgober.com>"
+    "James Gober <code@jamesgober.dev>"
 ]
 
 [features]
@@ -70,6 +70,9 @@ sysinfo = { version = "0.30", optional = true }
 # Utility
 bytes = "1.5"
 serde = { version = "1.0", features = ["derive"] }
+pin-project-lite = "0.2.16"
+futures-executor = "0.3.31"
+libc = "0.2.174"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
@@ -82,3 +85,4 @@ required-features = ["rt"]
 [[example]]
 name = "compare_tokio"
 required-features = ["rt"]
+
